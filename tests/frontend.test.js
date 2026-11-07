@@ -105,6 +105,12 @@ test('static build emits public config and rejects service-role credentials', ()
     assert.match(output, /https:\/\/demo-project\.supabase\.co/);
     assert.match(output, /sb_publishable_test_key_for_unit_tests/);
     assert.match(output, /2348164212898/);
+    const builtContext = { window: {} };
+    vm.runInNewContext(output, builtContext);
+    assert.deepEqual(Object.keys(builtContext.window.SB_CONFIG).sort(), [
+      'supabasePublishableKey', 'supabaseUrl', 'whatsappNumber'
+    ]);
+    assert.doesNotMatch(output, /sb_secret_|service[_-]?role|MONGODB_URI|DATABASE_URL|DB_PASSWORD/i);
 
     const rejected = spawnSync(process.execPath, [path.join(temp, 'scripts', 'build-static.js')], {
       env: { ...env, SUPABASE_PUBLISHABLE_KEY: 'sb_secret_do_not_publish' },
@@ -115,4 +121,11 @@ test('static build emits public config and rejects service-role credentials', ()
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
+});
+
+test('checked-in browser config contains no build credentials and scanning remains enabled', () => {
+  const config = fs.readFileSync(path.join(root, 'client', 'js', 'supabase-config.js'), 'utf8');
+  assert.doesNotMatch(config, /supabaseUrl|supabasePublishableKey|sb_publishable_|sb_secret_|service[_-]?role/i);
+  const netlify = fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8');
+  assert.doesNotMatch(netlify, /SECRETS_SCAN_ENABLED\s*=\s*["']?false/i);
 });

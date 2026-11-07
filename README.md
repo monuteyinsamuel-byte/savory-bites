@@ -17,6 +17,8 @@ Set these Netlify build environment variables:
 
 Locally, set the two environment variables in the shell before running `npm run build`, then serve `client/` using any static web server. The values in `.env.example` are documentation only; the build does not load dotenv files.
 
+The checked-in `client/js/supabase-config.js` contains only the WhatsApp number; the build injects the Supabase URL and publishable key. Netlify's smart secrets detection may flag the deliberately public Supabase publishable key in the generated file. If the deploy log confirms this exact false positive, add the Netlify environment variable `SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES` in **Project configuration → Environment variables** and set its value to the same `SUPABASE_PUBLISHABLE_KEY` value used by the build. This safelists only that public key; do not add a secret/service-role key, omit the whole file, or disable secrets scanning. See [Netlify secret scanning](https://docs.netlify.com/manage/security/secret-scanning/) for the supported safelist setting.
+
 ## Existing Supabase data and policies
 
 The frontend uses the existing tables `admin_users`, `menu_items`, `gallery_items`, `restaurant_settings` and `enquiries`, plus the public Storage bucket `restaurant-images`. It maps snake_case database columns into camelCase where applicable, including `is_active` → `isActive`, `sort_order` → `sortOrder`, and timestamps. Menu and gallery image URLs are stored directly in each table's `image` column.
