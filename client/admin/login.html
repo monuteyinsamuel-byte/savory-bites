@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin sign in — Savory Bites</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body class="auth-page">
+<main class="auth-card">
+  <div class="brand"><i>S</i><span>Savory Bites</span></div>
+  <h1>Admin sign in</h1>
+  <form id="loginForm" class="form" novalidate>
+    <label class="f">Email<input id="email" type="email" autocomplete="username" required maxlength="254"></label>
+    <label class="f">Password<input id="password" type="password" autocomplete="current-password" required maxlength="200"></label>
+    <p class="form-error" id="error" role="alert"></p>
+    <button class="btn primary" type="submit" id="submit">Sign in</button>
+  </form>
+  <p class="muted small"><a href="/">← Back to website</a> · <a href="/admin/setup.html" id="setupLink" hidden>First-time setup</a></p>
+</main>
+<script src="/js/shared.js"></script>
+<script src="/admin/js/login.js"></script>
+</body>
+</html>

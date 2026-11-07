@@ -1,0 +1,29 @@
+{
+  "name": "savory-bites",
+  "version": "2.0.0",
+  "description": "Savory Bites restaurant website with admin dashboard (Express + MongoDB)",
+  "main": "server/server.js",
+  "private": true,
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "create-admin": "node server/scripts/create-admin.js",
+    "test": "node --test server/tests/*.test.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "connect-mongo": "^5.1.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.3",
+    "express-rate-limit": "^8.7.3",
+    "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
+    "mongoose": "^8.24.8",
+    "multer": "^2.5.0"
+  }
+}

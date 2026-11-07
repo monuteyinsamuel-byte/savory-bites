@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>First-time setup — Savory Bites</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body class="auth-page">
+<main class="auth-card">
+  <div class="brand"><i>S</i><span>Savory Bites</span></div>
+  <h1>Create the owner account</h1>
+  <p class="muted small" id="intro">This page only works once, and only with the SETUP_TOKEN set on your server.</p>
+  <form id="setupForm" class="form" novalidate hidden>
+    <label class="f">Setup token<input id="token" type="password" autocomplete="off" required></label>
+    <label class="f">Email<input id="email" type="email" autocomplete="username" required maxlength="254"></label>
+    <label class="f">Password<input id="password" type="password" autocomplete="new-password" required minlength="10" maxlength="200"><small class="muted">At least 10 characters, with letters and numbers.</small></label>
+    <label class="f">Confirm password<input id="confirm" type="password" autocomplete="new-password" required></label>
+    <p class="form-error" id="error" role="alert"></p>
+    <button class="btn primary" type="submit">Create admin</button>
+  </form>
+  <p class="muted small"><a href="/admin/login.html">← Sign in</a></p>
+</main>
+<script src="/js/shared.js"></script>
+<script src="/admin/js/setup.js"></script>
+</body>
+</html>
