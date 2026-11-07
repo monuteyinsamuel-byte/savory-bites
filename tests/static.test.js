@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const root = path.join(__dirname, '..', '..');
+const root = path.join(__dirname, '..');
 const walk = (d, ext, out = []) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) { if (f.name !== 'node_modules') walk(p, ext, out); } else if (p.endsWith(ext)) out.push(p); } return out; };
 
 test('every stylesheet: media queries are max-width, unique, and ordered largest → smallest', () => {
@@ -38,9 +38,31 @@ test('HTML pages: local assets exist, no inline scripts/handlers/styles (CSP-saf
 
 test('WhatsApp number lives in one place and no other phone number is hard-coded in the client', () => {
   const files = [...walk(path.join(root, 'client'), '.js'), ...walk(path.join(root, 'client'), '.html'), ...walk(path.join(root, 'server', 'views'), '.html')];
-  for (const f of files) assert.ok(!/\d{10,}/.test(fs.readFileSync(f, 'utf8')), `${f}: contains a long digit sequence`);
-  const cfg = fs.readFileSync(path.join(root, 'server', 'config', 'index.js'), 'utf8');
-  assert.ok(cfg.includes("'2348164212898'"));
+  const configPath = path.join(root, 'client', 'js', 'supabase-config.js');
+  for (const f of files.filter(f => f !== configPath)) assert.ok(!/\d{10,}/.test(fs.readFileSync(f, 'utf8')), `${f}: contains a long digit sequence`);
+  const cfg = fs.readFileSync(configPath, 'utf8');
+  assert.ok(cfg.includes("whatsappNumber: '2348164212898'"));
   const wa = [...walk(path.join(root, 'client'), '.js')].filter(f => fs.readFileSync(f, 'utf8').includes('wa.me'));
   assert.deepStrictEqual(wa.map(f => path.basename(f)), ['main.js']);
+});
+
+test('Netlify deployment routes the dashboard and publishes static headers', () => {
+  const redirects = fs.readFileSync(path.join(root, 'client', '_redirects'), 'utf8');
+  const headers = fs.readFileSync(path.join(root, 'client', '_headers'), 'utf8');
+  const netlify = fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8');
+  assert.match(netlify, /publish\s*=\s*"client"/);
+  assert.match(redirects, /^\/admin\s+\/admin\/index\.html\s+200$/m);
+  assert.match(headers, /X-Content-Type-Options:\s*nosniff/);
+  assert.match(headers, /X-Frame-Options:\s*DENY/);
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(pkg.scripts.start, undefined);
+  assert.deepStrictEqual(pkg.dependencies, {});
+});
+
+test('deployed frontend does not call the retired Express API', () => {
+  const scripts = walk(path.join(root, 'client'), '.js');
+  for (const f of scripts) {
+    const source = fs.readFileSync(f, 'utf8');
+    assert.ok(!/\/api\/(?:admin|public|setup)\b/.test(source), `${f}: references an Express API`);
+  }
 });

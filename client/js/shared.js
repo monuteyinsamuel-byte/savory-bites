@@ -56,20 +56,5 @@
     return `${currency || ''}${body}`;
   }
 
-  // fetch wrapper: JSON in/out, FormData supported, CSRF header always sent.
-  async function request(url, { method = 'GET', json, form } = {}) {
-    const headers = { Accept: 'application/json', 'X-Requested-With': 'fetch' };
-    let body;
-    if (json !== undefined) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(json); }
-    else if (form) body = form;
-    let res;
-    try { res = await fetch(url, { method, headers, body, credentials: 'same-origin' }); }
-    catch { const e = new Error('Network error. Check your connection and try again.'); e.status = 0; throw e; }
-    let data = null;
-    try { data = await res.json(); } catch { /* empty body */ }
-    if (!res.ok) { const e = new Error((data && data.error) || `Request failed (${res.status}).`); e.status = res.status; e.errors = data && data.errors; throw e; }
-    return data;
-  }
-
-  window.SB = { h, art, picture, formatPrice, request };
+  window.SB = { h, art, picture, formatPrice };
 })();

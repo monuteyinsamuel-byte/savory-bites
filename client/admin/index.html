@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Dashboard — Savory Bites Admin</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body class="app">
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><i>S</i><span>Savory Bites</span></div>
+  <nav id="nav" aria-label="Admin">
+    <a href="#overview" data-route="overview">Overview</a>
+    <a href="#menu" data-route="menu">Menu</a>
+    <a href="#gallery" data-route="gallery">Gallery</a>
+    <a href="#settings" data-route="settings">Restaurant info</a>
+    <a href="#enquiries" data-route="enquiries">Enquiries <b class="count" id="newCount" hidden></b></a>
+    <a href="#account" data-route="account">Account</a>
+  </nav>
+  <div class="side-foot"><a href="/" target="_blank" rel="noopener">View website ↗</a><button class="btn ghost small" id="logout" type="button">Sign out</button></div>
+</aside>
+<div class="content">
+  <header class="topbar"><button class="menu-btn" id="menuBtn" type="button" aria-label="Toggle navigation">☰</button><h1 id="title">Overview</h1><span class="muted small" id="who"></span></header>
+  <main id="view" aria-live="polite"></main>
+</div>
+<dialog id="dlg"></dialog>
+<div class="toasts" id="toasts" role="status"></div>
+<script src="/js/shared.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/supabase-config.js"></script>
+<script src="/js/supabase-client.js"></script>
+<script src="/admin/js/admin.js"></script>
+</body>
+</html>

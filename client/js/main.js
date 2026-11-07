@@ -1,13 +1,22 @@
 /* Savory Bites public site: loads all content from the API and renders it safely. */
 (() => {
   'use strict';
-  const { h, art, picture, formatPrice, request } = window.SB;
+  const { h, art, picture, formatPrice } = window.SB;
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const state = { site: null, menu: [], category: 'All' };
 
-  // The only place a WhatsApp URL is built. The number comes from the server's central config.
-  const waLink = text => `https://wa.me/${state.site.whatsappNumber}?text=${encodeURIComponent(text)}`;
+  const whatsappNumber = String(window.SB_CONFIG.whatsappNumber || '').replace(/\D/g, '');
+  const formatWhatsapp = number => {
+    const match = /^234(\d{3})(\d{3})(\d{4})$/.exec(number);
+    return match ? `+234 ${match[1]} ${match[2]} ${match[3]}` : `+${number}`;
+  };
+  const waLink = text => `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+  const supabase = () => window.SB.supabaseClient();
+  const unwrap = ({ data, error }) => {
+    if (error) throw new Error(error.message || 'The request could not be completed.');
+    return data;
+  };
   const bind = (key, value) => $$(`[data-bind="${key}"]`).forEach(el => { el.textContent = value; });
   const show = (el, on) => { el.hidden = !on; };
 
@@ -18,6 +27,22 @@
 
   /* ---------- render ---------- */
   function renderSite(s) {
+    s = {
+      ...s,
+      name: s.name || 'Savory Bites',
+      tagline: s.tagline || '',
+      introduction: s.introduction || '',
+      description: s.description || '',
+      hours: Array.isArray(s.hours) ? s.hours : [],
+      address: s.address || '',
+      mapUrl: s.mapUrl || '',
+      email: s.email || '',
+      phone: s.phone || '',
+      currency: s.currency || '',
+      notice: s.notice || '',
+      whatsappNumber,
+      whatsappDisplay: formatWhatsapp(whatsappNumber)
+    };
     state.site = s;
     document.title = `${s.name} — Fine Dining & Order via WhatsApp`;
     const [first, ...rest] = s.name.split(' ');
@@ -40,6 +65,7 @@
   }
 
   function dishCard(d) {
+    d = { ...d, image: d.imageUrl || d.image || '' };
     const order = `Hello ${state.site.name}! I'd like to order: 1 x ${d.name} (${formatPrice(d.price, state.site.currency)}).`;
     return h('article', { class: 'card reveal' },
       h('div', { class: 'pic' }, picture(d.image, d.name)),
@@ -73,18 +99,31 @@
   async function loadMenu() {
     $('#popularGrid').replaceChildren(...skeletons(4));
     $('#menuGrid').replaceChildren(...skeletons(4));
-    try { state.menu = await request('/api/public/menu'); renderMenu(); }
+    try {
+      const rows = unwrap(await supabase().from('menu_items').select('*').eq('is_active', true)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+      state.menu = window.SB.fromSupabase(rows).map(item => ({ ...item, image: item.imageUrl || item.image || '' }));
+      renderMenu();
+    }
     catch (e) { const retry = () => loadMenu(); $('#popularGrid').replaceChildren(errorState(e.message, retry)); $('#menuGrid').replaceChildren(errorState(e.message, retry)); }
   }
   async function loadGallery() {
     $('#galleryGrid').replaceChildren(...skeletons(3));
-    try { renderGallery(await request('/api/public/gallery')); }
+    try {
+      const rows = unwrap(await supabase().from('gallery_items').select('*')
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+      renderGallery(window.SB.fromSupabase(rows).map(item => ({ ...item, image: item.imageUrl || item.image || '' })));
+    }
     catch (e) { $('#galleryGrid').replaceChildren(errorState(e.message, loadGallery)); }
   }
   async function init() {
     $('#heroArt').prepend(art('Herb-Crusted Lamb Rack'));
     $('#aboutArt').append(art('Saffron Seafood Paella'));
-    try { renderSite(await request('/api/public/site')); }
+    try {
+      const row = unwrap(await supabase().from('restaurant_settings').select('*').limit(1).maybeSingle());
+      if (!row) throw new Error('Restaurant information has not been added yet.');
+      renderSite(window.SB.fromSupabase(row));
+    }
     catch (e) {
       const box = $('#siteError'); box.hidden = false; box.className = 'site-error';
       box.replaceChildren(errorState(`Could not load restaurant details. ${e.message}`, () => location.reload()));
@@ -122,8 +161,17 @@
     // Open WhatsApp synchronously (inside the click) so mobile browsers don't block it.
     window.open(waLink(text), '_blank', 'noopener');
     status.textContent = 'Opening WhatsApp…';
-    request('/api/public/enquiries', { method: 'POST', json: { name, message, website: $('#fweb').value } })
-      .then(() => { status.textContent = 'Thank you! Your message was saved and WhatsApp is opening.'; e.target.reset(); })
+    if ($('#fweb').value) {
+      status.textContent = 'Thank you! Your message was saved and WhatsApp is opening.';
+      e.target.reset();
+      return;
+    }
+    Promise.resolve().then(() => supabase().from('enquiries').insert({ name, message, status: 'new' }))
+      .then(({ error }) => {
+        if (error) throw new Error(error.message || 'The enquiry could not be saved.');
+        status.textContent = 'Thank you! Your message was saved and WhatsApp is opening.';
+        e.target.reset();
+      })
       .catch(err => { status.textContent = `WhatsApp is opening, but we could not save your message: ${err.message}`; });
   });
 
