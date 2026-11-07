@@ -65,7 +65,7 @@
   }
 
   function dishCard(d) {
-    d = { ...d, image: d.imageUrl || d.image || '' };
+    d = { ...d, image: d.image || '' };
     const order = `Hello ${state.site.name}! I'd like to order: 1 x ${d.name} (${formatPrice(d.price, state.site.currency)}).`;
     return h('article', { class: 'card reveal' },
       h('div', { class: 'pic' }, picture(d.image, d.name)),
@@ -102,7 +102,7 @@
     try {
       const rows = unwrap(await supabase().from('menu_items').select('*').eq('is_active', true)
         .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
-      state.menu = window.SB.fromSupabase(rows).map(item => ({ ...item, image: item.imageUrl || item.image || '' }));
+      state.menu = window.SB.fromSupabase(rows).map(item => ({ ...item, image: item.image || '' }));
       renderMenu();
     }
     catch (e) { const retry = () => loadMenu(); $('#popularGrid').replaceChildren(errorState(e.message, retry)); $('#menuGrid').replaceChildren(errorState(e.message, retry)); }
@@ -112,7 +112,7 @@
     try {
       const rows = unwrap(await supabase().from('gallery_items').select('*')
         .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
-      renderGallery(window.SB.fromSupabase(rows).map(item => ({ ...item, image: item.imageUrl || item.image || '' })));
+      renderGallery(window.SB.fromSupabase(rows).map(item => ({ ...item, image: item.image || '' })));
     }
     catch (e) { $('#galleryGrid').replaceChildren(errorState(e.message, loadGallery)); }
   }

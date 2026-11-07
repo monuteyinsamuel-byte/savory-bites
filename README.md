@@ -19,20 +19,20 @@ Locally, set the two environment variables in the shell before running `npm run 
 
 ## Existing Supabase data and policies
 
-The frontend uses the existing tables `admin_users`, `menu_items`, `gallery_items`, `restaurant_settings` and `enquiries`, plus the public Storage bucket `restaurant-images`. The frontend maps snake_case database columns into camelCase, including `image_url` → `imageUrl`, `is_active` → `isActive`, `sort_order` → `sortOrder`, and timestamps.
+The frontend uses the existing tables `admin_users`, `menu_items`, `gallery_items`, `restaurant_settings` and `enquiries`, plus the public Storage bucket `restaurant-images`. It maps snake_case database columns into camelCase where applicable, including `is_active` → `isActive`, `sort_order` → `sortOrder`, and timestamps. Menu and gallery image URLs are stored directly in each table's `image` column.
 
 Before deploying, check the existing schema and Row Level Security policies in the Supabase dashboard. The implementation expects:
 
 - `admin_users.user_id` to contain the associated Supabase Auth user UUID. A signed-in user may read only their own membership row.
-- `menu_items` to have `id`, `name`, `description`, `price`, `category`, `image_url`, `is_active`, `is_popular`, and `sort_order`.
-- `gallery_items` to have `id`, `caption`, `image_url`, and `sort_order`.
-- `restaurant_settings` to have one existing row with a primary `id` or `key`, plus the restaurant fields and an `hours` JSON/JSONB array.
+- `menu_items` to have `id`, `name`, `description`, `price`, `category`, `image`, `is_active`, `is_popular`, and `sort_order`.
+- `gallery_items` to have `id`, `caption`, `image`, and `sort_order`.
+- `restaurant_settings` to have one existing row identified by `key`, plus the restaurant fields and an `hours` JSON/JSONB array of `{day, time}` objects.
 - `enquiries` to have `id`, `name`, `message`, `status`, and `created_at`.
 - Anonymous users to read public restaurant settings, active menu rows and gallery rows, and insert enquiries only. Public enquiry inserts must not permit writes to `admin_users` or any other administrative table.
 - Admin database reads and writes to be limited by RLS to authenticated users who have a matching `admin_users.user_id` row.
 - The `restaurant-images` bucket to allow public reads; uploads and deletes must be restricted to authenticated administrators. The browser uploads under `menu/` and `gallery/`.
 
-Do not disable RLS to make the site work. The browser-side membership check controls the UI, but **RLS is the security boundary** for database and Storage operations. The repository does not include your project's schema/policies, and the project credentials were not present in the workspace; verify these expectations against the existing project rather than applying guessed migrations.
+Do not disable RLS to make the site work. The browser-side membership check controls the UI, but **RLS is the security boundary** for database and Storage operations. The source does not provide the Supabase project's actual schema or policies. Verify these expectations against the existing project rather than applying guessed migrations.
 
 The existing Supabase Auth administrator account is used as-is. Public registration is not implemented. `/admin/setup.html` displays that administrator setup is disabled.
 

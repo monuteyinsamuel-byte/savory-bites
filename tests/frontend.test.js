@@ -19,21 +19,48 @@ function loadClient({ config = {}, supabase } = {}) {
 test('snake_case database fields map to camelCase and back, including nested JSON', () => {
   const sb = loadClient();
   const database = {
-    image_url: '/dish.png',
+    name: 'Savory Bites',
+    tagline: 'Fresh and seasonal',
+    introduction: 'Welcome',
+    description: 'Restaurant description',
+    address: '1 Market Street',
+    map_url: 'https://maps.example.test',
+    key: 'main',
+    email: 'hello@example.test',
+    phone: '+234 800 000 0000',
+    currency: '₦',
+    notice: '',
+    hours: [{ day: 'Monday–Friday', time: '09:00–17:00' }],
+    image: '/dish.png',
     is_active: true,
     is_popular: false,
     sort_order: 5,
     created_at: '2026-01-01T00:00:00Z',
-    hours: [{ opens_at: '09:00', closes_at: '17:00' }]
   };
   const browser = sb.fromSupabase(database);
-  assert.equal(browser.imageUrl, '/dish.png');
+  assert.equal(browser.mapUrl, 'https://maps.example.test');
+  assert.equal(browser.key, 'main');
+  assert.equal(browser.name, 'Savory Bites');
+  assert.equal(browser.image, '/dish.png');
   assert.equal(browser.isActive, true);
   assert.equal(browser.isPopular, false);
   assert.equal(browser.sortOrder, 5);
   assert.equal(browser.createdAt, '2026-01-01T00:00:00Z');
-  assert.equal(browser.hours[0].opensAt, '09:00');
+  assert.equal(browser.hours[0].day, 'Monday–Friday');
+  assert.equal(browser.hours[0].time, '09:00–17:00');
   assert.equal(JSON.stringify(sb.toSupabase(browser)), JSON.stringify(database));
+});
+
+test('menu and gallery image operations use the existing image column', () => {
+  const admin = fs.readFileSync(path.join(root, 'client', 'admin', 'js', 'admin.js'), 'utf8');
+  const frontend = fs.readFileSync(path.join(root, 'client', 'js', 'main.js'), 'utf8');
+  assert.match(admin, /image:\s*item\s*\?\s*item\.image/);
+  assert.match(admin, /data\.image\s*=\s*uploaded\.url/);
+  assert.match(admin, /select\('image'\)\.eq\('image',\s*imageUrl\)/);
+  assert.match(frontend, /item\.image\s*\|\|\s*''/);
+  assert.doesNotMatch(`${admin}\n${frontend}`, /image_url|\.imageUrl/);
+  assert.match(admin, /s\.key\s*\?\s*\['key',\s*s\.key\]/);
+  assert.match(admin, /data\.hours\s*=\s*\[\.\.\.hoursBox\.children\]/);
 });
 
 test('client initializes once with only the configured public credentials', () => {

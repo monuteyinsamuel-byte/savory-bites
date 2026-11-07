@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const root = path.join(__dirname, '..');
 const walk = (d, ext, out = []) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) { if (f.name !== 'node_modules') walk(p, ext, out); } else if (p.endsWith(ext)) out.push(p); } return out; };
 
@@ -40,8 +41,9 @@ test('WhatsApp number lives in one place and no other phone number is hard-coded
   const files = [...walk(path.join(root, 'client'), '.js'), ...walk(path.join(root, 'client'), '.html'), ...walk(path.join(root, 'server', 'views'), '.html')];
   const configPath = path.join(root, 'client', 'js', 'supabase-config.js');
   for (const f of files.filter(f => f !== configPath)) assert.ok(!/\d{10,}/.test(fs.readFileSync(f, 'utf8')), `${f}: contains a long digit sequence`);
-  const cfg = fs.readFileSync(configPath, 'utf8');
-  assert.ok(cfg.includes("whatsappNumber: '2348164212898'"));
+  const context = { window: {} };
+  vm.runInNewContext(fs.readFileSync(configPath, 'utf8'), context);
+  assert.strictEqual(context.window.SB_CONFIG.whatsappNumber, '2348164212898');
   const wa = [...walk(path.join(root, 'client'), '.js')].filter(f => fs.readFileSync(f, 'utf8').includes('wa.me'));
   assert.deepStrictEqual(wa.map(f => path.basename(f)), ['main.js']);
 });

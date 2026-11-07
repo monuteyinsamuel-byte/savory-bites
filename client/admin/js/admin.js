@@ -64,13 +64,19 @@
     const { error } = await supabase.storage.from('restaurant-images').remove([path]);
     if (error) throw error;
   }
+  async function removeImageIfUnused(supabase, imageUrl) {
+    if (!imageUrl) return;
+    for (const table of ['menu_items', 'gallery_items']) {
+      const { data, error } = await supabase.from(table).select('image').eq('image', imageUrl).limit(1).maybeSingle();
+      if (error) throw error;
+      if (data) return;
+    }
+    await removeImage(supabase, imageUrl);
+  }
   async function uploadImage(supabase, file, folder) {
+    await validateImageFile(file);
     const ext = file.name.split('.').pop().toLowerCase();
     const allowed = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
-    if (!allowed[ext] || file.type !== allowed[ext]) {
-      throw new Error('Choose a valid JPG, PNG or WebP image.');
-    }
-    if (file.size > 3 * 1024 * 1024) throw new Error('Image is too large (maximum 3 MB).');
     const path = `${folder}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from('restaurant-images').upload(path, file, {
       cacheControl: '3600',
@@ -80,6 +86,24 @@
     if (error) throw error;
     const { data } = supabase.storage.from('restaurant-images').getPublicUrl(path);
     return { path, url: data.publicUrl };
+  }
+  async function validateImageFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const allowed = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+    if (!allowed[ext] || file.type !== allowed[ext]) {
+      throw new Error('Choose a valid JPG, PNG or WebP image.');
+    }
+    if (!file.size || file.size > 3 * 1024 * 1024) {
+      throw new Error('Image must be larger than 0 bytes and no larger than 3 MB.');
+    }
+    const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const png = bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v);
+    const webp = bytes.length >= 12 &&
+      String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' &&
+      String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP';
+    const valid = ext === 'jpg' || ext === 'jpeg' ? jpeg : ext === 'png' ? png : webp;
+    if (!valid) throw new Error('The selected file is not a valid JPG, PNG or WebP image.');
   }
   function reportCleanupError(error) {
     toast(`Saved, but an old image could not be removed: ${error.message}`, true);
@@ -128,11 +152,13 @@
       const f = fileInput.files[0];
       if (!f) return;
       const max = (state.me && state.me.maxImageMb) || 3;
-      const types = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
-      const ext = f.name.split('.').pop().toLowerCase();
-      if (!types[ext] || f.type !== types[ext]) { fileInput.value = ''; toast('Choose a valid JPG, PNG or WebP image.', true); return; }
       if (f.size > max * 1024 * 1024) { fileInput.value = ''; toast(`Image is too large (max ${max} MB).`, true); return; }
-      prev.replaceChildren(h('img', { src: URL.createObjectURL(f), alt: 'New image preview' }));
+      validateImageFile(f).then(() => {
+        if (fileInput.files[0] === f) prev.replaceChildren(h('img', { src: URL.createObjectURL(f), alt: 'New image preview' }));
+      }).catch(error => {
+        fileInput.value = '';
+        toast(error.message, true);
+      });
     });
     return [prev, field(`Image (JPG, PNG or WebP, max ${(state.me && state.me.maxImageMb) || 3} MB)`, fileInput, 'image')];
   }
@@ -173,7 +199,7 @@
     let items;
     try {
       items = await api(s => s.from('menu_items').select('*').order('sort_order').order('created_at'));
-      items = items.map(i => ({ ...i, image: i.imageUrl || '' }));
+      items = items.map(i => ({ ...i, image: i.image || '' }));
     } catch (e) { return errBox(e, renderMenu); }
     const cur = state.settings ? state.settings.currency : '';
     const cats = [...new Set(items.map(i => i.category))];
@@ -197,7 +223,7 @@
             const supabase = await requireAdmin();
             const removed = unwrap(await supabase.from('menu_items').delete().eq('id', i.id).select('id').maybeSingle());
             if (!removed) throw new Error('Menu item not found or could not be deleted.');
-            try { await removeImage(supabase, i.image); } catch (e) { reportCleanupError(e); }
+            try { await removeImageIfUnused(supabase, i.image); } catch (e) { reportCleanupError(e); }
             toast('Menu item deleted');
             renderMenu();
           } catch (e) { fail(e); }
@@ -231,14 +257,14 @@
           sortOrder: Number(form.elements.sortOrder.value) || 0,
           isPopular: form.elements.isPopular.checked,
           isActive: form.elements.isActive.checked,
-          imageUrl: item ? item.image : ''
+          image: item ? item.image : ''
         };
         const file = form.elements.image.files[0];
         let uploaded;
         if (file) {
           uploaded = await uploadImage(supabase, file, 'menu');
-          data.imageUrl = uploaded.url;
-        } else if (remove && form.elements.removeImage.checked) data.imageUrl = '';
+          data.image = uploaded.url;
+        } else if (remove && form.elements.removeImage.checked) data.image = '';
         try {
           const query = item
             ? supabase.from('menu_items').update(toSupabase(data)).eq('id', item.id).select('id').single()
@@ -250,8 +276,8 @@
           }
           throw error;
         }
-        if (item && item.image && item.image !== data.imageUrl) {
-          try { await removeImage(supabase, item.image); } catch (error) { reportCleanupError(error); }
+        if (item && item.image && item.image !== data.image) {
+          try { await removeImageIfUnused(supabase, item.image); } catch (error) { reportCleanupError(error); }
         }
         toast(item ? 'Menu item updated' : 'Menu item added'); renderMenu();
       }
@@ -264,7 +290,7 @@
     let items;
     try {
       items = await api(s => s.from('gallery_items').select('*').order('sort_order').order('created_at'));
-      items = items.map(g => ({ ...g, image: g.imageUrl || '' }));
+      items = items.map(g => ({ ...g, image: g.image || '' }));
     } catch (e) { return errBox(e, renderGallery); }
     const cards = items.map(g => h('div', { class: 'g' },
       h('div', { class: 'img' }, picture(g.image, g.caption || 'Gallery image')),
@@ -277,7 +303,7 @@
               const supabase = await requireAdmin();
               const removed = unwrap(await supabase.from('gallery_items').delete().eq('id', g.id).select('id').maybeSingle());
               if (!removed) throw new Error('Gallery entry not found or could not be deleted.');
-              try { await removeImage(supabase, g.image); } catch (e) { reportCleanupError(e); }
+              try { await removeImageIfUnused(supabase, g.image); } catch (e) { reportCleanupError(e); }
               toast('Gallery entry deleted');
               renderGallery();
             } catch (e) { fail(e); }
@@ -298,13 +324,13 @@
         const data = {
           caption: form.elements.caption.value.trim(),
           sortOrder: Number(form.elements.sortOrder.value) || 0,
-          imageUrl: item ? item.image : ''
+          image: item ? item.image : ''
         };
         const file = form.elements.image.files[0];
         let uploaded;
         if (file) {
           uploaded = await uploadImage(supabase, file, 'gallery');
-          data.imageUrl = uploaded.url;
+          data.image = uploaded.url;
         }
         try {
           const query = item
@@ -317,8 +343,8 @@
           }
           throw error;
         }
-        if (item && item.image && item.image !== data.imageUrl) {
-          try { await removeImage(supabase, item.image); } catch (error) { reportCleanupError(error); }
+        if (item && item.image && item.image !== data.image) {
+          try { await removeImageIfUnused(supabase, item.image); } catch (error) { reportCleanupError(error); }
         }
         toast(item ? 'Gallery entry updated' : 'Image uploaded'); renderGallery();
       }
@@ -363,7 +389,7 @@
       data.hours = [...hoursBox.children].map(r => ({ day: r.children[0].value, time: r.children[1].value })).filter(r => r.day.trim() || r.time.trim());
       try {
         const supabase = await requireAdmin();
-        const identifier = s.id ? ['id', s.id] : s.key ? ['key', s.key] : null;
+        const identifier = s.key ? ['key', s.key] : s.id ? ['id', s.id] : null;
         if (!identifier) throw new Error('The restaurant settings row has no supported identifier.');
         const result = await supabase.from('restaurant_settings')
           .update(toSupabase(data))
